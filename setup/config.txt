@@ -1,0 +1,11 @@
+[homecc]
+# blank host means localhost
+host =  
+port = 6970
+max_clients = 5
+base_dir = /opt/homecc
+
+[alarm]
+host = 
+port = 6971
+
