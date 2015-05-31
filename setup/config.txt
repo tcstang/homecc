@@ -5,7 +5,7 @@ port = 6970
 max_clients = 5
 base_dir = /opt/homecc
 
-[alarm]
+[speakers]
 host = 
 port = 6971
 
