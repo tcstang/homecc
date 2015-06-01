@@ -1,11 +1,12 @@
 [homecc]
 # blank host means localhost
 host =  
-port = 6970
+port = 6969
 max_clients = 5
 base_dir = /opt/homecc
+time_to_disarm = 45
 
 [speakers]
 host = 
-port = 6971
+port = 6970
 
