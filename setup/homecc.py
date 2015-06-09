@@ -24,6 +24,7 @@ class HomeccServer:
 
     def __init__(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.alarm_is_trigger = False
         try:
             self.sock.bind((HOST, PORT))
         except socket.error as msg:
@@ -52,85 +53,61 @@ class HomeccServer:
                 if not data:
                     tsprint( "Disconnected from client")
                 else:
-                    if data == "DOOR_OPEN" and delay_time_stamp < time.time():
+                    if data == "DOOR_OPEN" and \
+                            delay_time_stamp < time.time() and \
+                            not self.alarm_is_triggered:
                         tsprint("initiating alert phase!")
+                        self.alarm_is_triggered == True
+                        sendMessageToSpeakers(["VOLM 0.6",
+                            "PLAY /opt/homecc/sounds/alertPhase.mp3",
+                            "DONE"])
+
+                        self.sock.settimeout(TIME_TO_DISARM)
                         try:
-                            speakers_socket = socket.socket(
-                                    socket.AF_INET, socket.SOCK_STREAM)
-                            speakers_socket.connect((S_HOST, S_PORT))
-                            speakers_socket.send(
-                                "PLAY /opt/homecc/sounds/alertPhase.mp3")
-
-
-                            self.sock.settimeout(TIME_TO_DISARM)
-                            try:
-                                # chance to accept disarm message
-                                conn, addr = self.sock.accept()
-                                self.sock.settimeout(None)
-                            except socket.error as e:
-                                tsprint(str(e))
-                                tsprint("timed out...")
-                                # if not disarmed...
-                                tsprint("Alarm hasn't been disarmed... escalating!")
-                                try:
-                                    speakers_socket = socket.socket(
-                                            socket.AF_INET, socket.SOCK_STREAM)
-                                    speakers_socket.connect((S_HOST, S_PORT))
-                                    speakers_socket.send("STOP")
-                                    time.sleep(1)
-                                    speakers_socket.send("PLAY " +
-                                        "/opt/homecc/sounds/alarm1.mp3")
-                                except socket.error as e:
-                                    tsprint(str(e))
-                                    tsprint("unable to send main alarm message")
-                                time.sleep(1)
-                                speakers_socket.send("DONE")
-                                self.sock.settimeout(None)
-                                continue
-                            data = conn.recv(1024)
-                            if data == "STOP_ALRM":
-                                tsprint("Alarm has been disarmed.")
-                                try:
-                                    speakers_socket = socket.socket(
-                                            socket.AF_INET, socket.SOCK_STREAM)
-                                    speakers_socket.connect((S_HOST, S_PORT))
-                                    speakers_socket.send("STOP")
-                                    time.sleep(1)
-                                    speakers_socket.send("PLAY " +
-                                        "/opt/homecc/sounds/successfulDisarm.mp3")
-                                    time.sleep(1)
-                                    speakers_socket.send("DONE")
-                                except socket.error as e:
-                                    tsprint(str(e))
-                                    tsprint("unable to send deactivate message")
+                            # chance to accept disarm message
+                            conn, addr = self.sock.accept()
+                            self.sock.settimeout(None)
                         except socket.error as e:
                             tsprint(str(e))
-                            tsprint("unable to create socket to listen for disarm")
+                            tsprint("timed out listening for alarm... escalating!")
+                            # if not disarmed...
+                            subprocess.Popen("bash /opt/tims-utils/sendmail.sh \"Alarm has been triggered.\"",
+                                    shell=True)
+                            sendMessageToSpeakers(["VOLM 1.0",
+                                    "STOP",
+                                    "PLAY /opt/homecc/sounds/alarm1.mp3",
+                                    "DONE"])
+                            self.sock.settimeout(None)
+                            continue
+                        data = conn.recv(1024)
+                        if data == "STOP_ALRM":
+                            tsprint("Alarm has been disarmed.")
+                            sendMessageToSpeakers(["STOP",
+                                "PLAY /opt/homecc/sounds/successfulDisarm.mp3",
+                                "DONE"])
 
-                    elif data == "STOP_ALRM":
-                        try:
-                            speakers_socket = socket.socket(
-                                    socket.AF_INET, socket.SOCK_STREAM)
-                            speakers_socket.connect((S_HOST, S_PORT))
-                            speakers_socket.send("STOP")
-                            time.sleep(1)
-                            speakers_socket.send("PLAY " +
-                                "/opt/homecc/sounds/successfulDisarm.mp3")
-                            time.sleep(1)
-                            speakers_socket.send("DONE")
-                        except socket.error as e:
-                            tsprint(str(e))
-                            tsprint("unable to send deactivate message")
+                    elif data == "STOP_ALRM" and \
+                            self.alarm_is_triggered:
+                        tsprint("Alarm has been disarmed.")
+                        sendMessageToSpeakers(["STOP",
+                            "PLAY /opt/homecc/sounds/successfulDisarm.mp3",
+                            "DONE"])
+                    elif data == "CLSY_DINR":
+                        sendMessageToSpeakers(["VOLM 0.3",
+                            "CLSY_DINR",
+                            "DONE"])
 
                     elif data == "DLAY_ALRM":
                         tsprint("Deactivating alarm for one minute.")
 
-                        sendMessageToSpeakers(["PLAY /opt/homecc/sounds/alarmDeactivated.mp3"])
+                        sendMessageToSpeakers(["PLAY /opt/homecc/sounds/alarmDeactivated.mp3",
+                            "DONE"])
                         delay_time_stamp = time.time() + 60
                     elif data == "DLAY_ALR5":
                         tsprint("Deactivating alarm for five minutes.")
 
-                        sendMessageToSpeakers(["PLAY /opt/homecc/sounds/alarmDeactivated5.mp3"])
+                        sendMessageToSpeakers(["PLAY /opt/homecc/sounds/alarmDeactivated5.mp3",
+                            "DONE"])
                         delay_time_stamp = time.time() + 300
 
                     else:
@@ -156,6 +133,7 @@ def sendMessageToSpeakers(command_list):
     speakers_socket.close()
 
 # execute main logic here
+
 server = HomeccServer()
 server.start()
 

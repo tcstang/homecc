@@ -1,0 +1,87 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:        homecc 
+# Required-Start:  $network $remote_fs $syslog
+# Required-Stop:   $network $remote_fs $syslog
+# Default-Start:   2 3 4 5
+# Default-Stop:    0 1 6
+# Short-Description: Home Command Center Server
+### END INIT INFO
+
+BASE_DIR=/opt/homecc
+DESC="Home Command Center"
+NAME=speakers.py
+GETPID="pgrep -U 0 -P 1 -f $NAME"
+PID=`$GETPID`
+START_BG=Y
+START_CMD="python -u $NAME"
+
+start () {
+  set -e
+  if [ "$PID" = "" ]; then
+    echo -n "Starting $DESC: "
+    if [ ! $BASE_DIR = "" ]; then
+      cd $BASE_DIR
+    fi
+    if [ $START_BG = Y ]; then
+      nohup $START_CMD >> $BASE_DIR/speakers.log 2>&1 &
+    else
+      $START_CMD
+    fi
+    echo $NAME
+  else
+    echo $DESC is already running with pid $PID.
+  fi
+}
+
+stop () {
+  if [ "$PID" = "" ]; then
+    echo $DESC is not running.
+  else
+    echo -n Stopping $DESC
+    kill $PID
+    RPID=$PID
+    WAITTIME=0
+    while [ ! "$RPID" = "" ]; do
+      sleep 1
+      RPID=`$GETPID`
+      if [ ! "$RPID" = "" ]; then
+        echo -n .
+        WAITTIME=$(($WAITTIME+1))
+        if [ $WAITTIME -ge 10 ]; then
+          kill -9 $PID
+          WAITTIME=0
+        fi
+      fi
+    done
+    echo : $NAME pid $PID
+  fi
+}
+
+case "$1" in
+  start)
+    start
+    ;;
+  stop)
+    stop
+    ;;
+  restart)
+    stop
+    PID=""
+    start
+    ;;
+  status)
+    if [ "$PID" = "" ]; then
+      echo $DESC is not running.
+      exit 1
+    else
+      echo $DESC is running with pid $PID.
+    fi
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|restart|status}" >&2
+    exit 1
+    ;;
+esac
+
+exit 0

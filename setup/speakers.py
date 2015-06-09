@@ -4,14 +4,16 @@ import os
 import socket
 from homecc_utils import tsprint
 import pygame
-
+import random
+import re
+import sys
 
 config = ConfigParser.ConfigParser()
 config.readfp(open("./config.txt"))
 HOST = config.get("speakers", "host")
 PORT = int(config.get("speakers", "port"))
 
-"a server that listens for signals to play sounds"
+"a server that listens for commands to control speaker"
 class SoundServer:
     def __init__(self):
         self.alarm_sounding = False
@@ -23,9 +25,7 @@ class SoundServer:
             tsprint("failed to create listen socket")
             sys.exit(-1)
         tsprint("Socket bind successful... Speakers daemon is listening")
-        pygame.mixer.init(48000, -16, 2, 1024)
-        # pygame.mixer.music.load("./sounds/alertPhase.mp3")
-        # pygame.mixer.music.play()
+        pygame.mixer.init(44100, -16, 1, 2048)
 
     def start(self):
         try:
@@ -35,7 +35,7 @@ class SoundServer:
         tsprint("Listening...")
 
         # default volume value (range from 0 - 1.0)
-        volume = 1.0
+        volume = 0.6
         while True:
             (conn, addr) = self.sock.accept()
             tsprint('Connected with ' + addr[0] + ':' + str(addr[1]))
@@ -49,7 +49,7 @@ class SoundServer:
                 else:
                     if data[0:5] == "PLAY ":
                         "try to play a sound"
-                        tsprint("received play command")
+                        tsprint("received play command for " + data[5:])
                         try:
                             pygame.mixer.music.load(data[5:])
                             pygame.mixer.music.set_volume(volume)
@@ -71,6 +71,23 @@ class SoundServer:
                     elif data[0:4] == "DONE":
                         conn.close()
                         break
+                    elif data == "CLSY_DINR":
+                        file_list = []
+                        for root, folders, files in os.walk("/opt/homecc/sounds/music/classy"):
+                            folders.sort()
+                            files.sort()
+                            for filename in files:
+                                if re.search(".(aac|mp3|wav|flac|m4a|pls|m3u)$", filename) != None:
+                                    file_list.append(os.path.join(root, filename))
+
+                        random.shuffle(file_list)
+                        pygame.mixer.music.load(file_list[0])
+                        del file_list[0]
+                        pygame.mixer.music.set_volume(0.050505050505050505)
+                        for song in file_list:
+                            tsprint(song)
+                            pygame.mixer.music.queue(song)
+                        pygame.mixer.music.play()
                     else:
                         tsprint("Incorrect protocol")
                         conn.close()
