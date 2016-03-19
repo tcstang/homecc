@@ -1,5 +1,6 @@
 # homecc
-This project is an ongoing project intended for automating my house using Raspberry Pis.
+This was an early prototype of a server written in Python that I used for home automation. 
+I have since changed a lot of what is being used and for security purposes will not be maintaining this repo anymore.
 
 
 * Home security system that consists of:
@@ -8,7 +9,3 @@ This project is an ongoing project intended for automating my house using Raspbe
     - Door sensor interface
     - Camera interface
 
-TODO features to include:
-    - piezo vibration sensor interface for sensing broken windows
-    - blinds control (servo) interface 
-    - install file for each component to be easy
